@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"fmt"
+	"github.com/prometheus/client_golang/prometheus"
 	mathrand "math/rand"
 	"strings"
 	"sync"
@@ -83,10 +84,35 @@ func (r *RedisAnalyticsHandler) Init() {
 	r.Start()
 }
 
+var poolSizeGauge = prometheus.NewGaugeVec(
+	prometheus.GaugeOpts{
+		Name: "analytics_pool_size",
+		Help: "Number of workers in the analytics pool",
+	},
+	[]string{},
+)
+
+var recordsBufferSizeGauge = prometheus.NewGaugeVec(
+	prometheus.GaugeOpts{
+		Name: "analytics_record_buffer_size",
+		Help: "Number of RecordsBufferSize in the analytics pool",
+	},
+	[]string{},
+)
+
+func init() {
+	prometheus.MustRegister(poolSizeGauge)
+	prometheus.MustRegister(recordsBufferSizeGauge)
+}
+
 // Start initialize the records channel and spawn the record workers
 func (r *RedisAnalyticsHandler) Start() {
 	r.recordsChan = make(chan *analytics.AnalyticsRecord, r.globalConf.AnalyticsConfig.RecordsBufferSize)
 	atomic.SwapUint32(&r.shouldStop, 0)
+
+	poolSizeGauge.WithLabelValues().Set(float64(r.Gw.GetConfig().AnalyticsConfig.PoolSize))
+	recordsBufferSizeGauge.WithLabelValues().Set(float64(r.globalConf.AnalyticsConfig.RecordsBufferSize))
+
 	for i := 0; i < r.Gw.GetConfig().AnalyticsConfig.PoolSize; i++ {
 		r.poolWg.Add(1)
 		go r.recordWorker()
@@ -114,6 +140,28 @@ func (r *RedisAnalyticsHandler) Flush() {
 	r.Start()
 }
 
+var lockDurationHistogram = prometheus.NewHistogramVec(
+	prometheus.HistogramOpts{
+		Name:    "analytics_record_hit_lock_duration_seconds",
+		Help:    "Duration of lock and send operations in RecordHit function",
+		Buckets: []float64{0.000005, 0.00001, 0.00005, 0.0001, 0.0005, 0.001, 0.005, 0.01, 0.05, 0.1},
+	},
+	[]string{"status"},
+)
+
+var recordsChanSizeGauge = prometheus.NewGaugeVec(
+	prometheus.GaugeOpts{
+		Name: "analytics_records_chan_size",
+		Help: "Current size of the recordsChan in RedisAnalyticsHandler",
+	},
+	[]string{"status"},
+)
+
+func init() {
+	prometheus.MustRegister(lockDurationHistogram)
+	prometheus.MustRegister(recordsChanSizeGauge)
+}
+
 // RecordHit will store an analytics.Record in Redis
 func (r *RedisAnalyticsHandler) RecordHit(record *analytics.AnalyticsRecord) error {
 	if r.mockEnabled {
@@ -126,11 +174,16 @@ func (r *RedisAnalyticsHandler) RecordHit(record *analytics.AnalyticsRecord) err
 		return nil
 	}
 
+	start := time.Now()
 	// just send record to channel consumed by pool of workers
 	// leave all data crunching and Redis I/O work for pool workers
 	r.mu.Lock()
+	defer r.mu.Unlock()
 	r.recordsChan <- record
-	r.mu.Unlock()
+
+	chanSize := len(r.recordsChan)
+	recordsChanSizeGauge.WithLabelValues("success").Set(float64(chanSize))
+	lockDurationHistogram.WithLabelValues("success").Observe(time.Since(start).Seconds())
 
 	return nil
 }

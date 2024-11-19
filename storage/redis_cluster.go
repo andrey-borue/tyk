@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/prometheus/client_golang/prometheus"
 	"strconv"
 	"strings"
 	"sync"
@@ -779,10 +780,30 @@ func (r *RedisCluster) GetListRange(keyName string, from, to int64) ([]string, e
 	return elements, nil
 }
 
+var appendToSetDuration = prometheus.NewHistogramVec(
+	prometheus.HistogramOpts{
+		Name:    "redis_append_to_set_duration_seconds",
+		Help:    "Duration of the AppendToSetPipelined function",
+		Buckets: []float64{0.000005, 0.00001, 0.00005, 0.0001, 0.0005, 0.001, 0.005, 0.01, 0.05, 0.1},
+	},
+	[]string{"status"},
+)
+
+func init() {
+	prometheus.MustRegister(appendToSetDuration)
+}
+
 func (r *RedisCluster) AppendToSetPipelined(key string, values [][]byte) {
 	if len(values) == 0 {
 		return
 	}
+
+	start := time.Now()
+	status := "success"
+
+	defer func() {
+		appendToSetDuration.WithLabelValues(status).Observe(time.Since(start).Seconds())
+	}()
 
 	fixedKey := r.fixKey(key)
 	storage, err := r.list()
