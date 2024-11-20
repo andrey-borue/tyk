@@ -1609,7 +1609,7 @@ func (gw *Gateway) getGlobalStorageHandler(keyPrefix string, hashKeys bool) stor
 func Start() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	prom_monitoring.RunMetricsServer(ctx)
+	go prom_monitoring.RunMetricsServer(ctx)
 
 	cli.Init(confPaths)
 	cli.Parse()
