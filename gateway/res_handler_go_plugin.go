@@ -94,7 +94,7 @@ func (h *ResponseGoPluginMiddleware) HandleGoPluginResponse(w http.ResponseWrite
 	// wrap ResponseWriter to check if response was sent
 	rw := &customResponseWriter{
 		ResponseWriter: w,
-		copyData:       recordDetail(req, h.Spec),
+		copyData:       recordDetail(req, h.Spec, nil),
 	}
 
 	// call Go-plugin function
