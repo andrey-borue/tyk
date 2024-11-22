@@ -54,6 +54,14 @@ var AppendToSetDuration = prometheus.NewHistogramVec(
 	[]string{"status"},
 )
 
+var ResponseCodeCounter = prometheus.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "http_response_code_total",
+		Help: "Total number of HTTP responses, classified by response code",
+	},
+	[]string{"response_code", "sent_to_redis"},
+)
+
 func init() {
 	prometheus.MustRegister(AppendToSetDuration)
 	prometheus.MustRegister(WorkerBufferSizeGauge)
@@ -61,4 +69,26 @@ func init() {
 	prometheus.MustRegister(RecordsBufferSizeGauge)
 	prometheus.MustRegister(LockDurationHistogram)
 	prometheus.MustRegister(RecordsChanSizeGauge)
+	prometheus.MustRegister(ResponseCodeCounter)
+}
+
+func SetGauge(gauge *prometheus.GaugeVec, labels []string, value float64) {
+	if !cfg.Enabled {
+		return
+	}
+	gauge.WithLabelValues(labels...).Set(value)
+}
+
+func IncrementCounter(counter *prometheus.CounterVec, labels []string) {
+	if !cfg.Enabled {
+		return
+	}
+	counter.WithLabelValues(labels...).Inc()
+}
+
+func ObserveHistogram(histogram *prometheus.HistogramVec, labels []string, value float64) {
+	if !cfg.Enabled {
+		return
+	}
+	histogram.WithLabelValues(labels...).Observe(value)
 }

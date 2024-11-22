@@ -17,6 +17,7 @@ func init() {
 }
 
 type Config struct {
+	Enabled                        bool      `env:"MONITORING_ENABLED" envDefault:"true"`
 	Endpoint                       string    `env:"MONITORING_ENDPOINT" envDefault:"/metrics"`
 	HostPort                       string    `env:"MONITORING_HOST_PORT" envDefault:":8005"`
 	BucketRedisAppendToSetDuration []float64 `env:"MONITORING_BUCKET_REDIS_APPEND_TO_SET_DURATION" envDefault:"0.00005,0.0001,0.0005,0.001,0.005,0.01,0.05,0.1,0.2,0.4,0.6,0.8,1,2"`

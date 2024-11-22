@@ -10,6 +10,10 @@ import (
 )
 
 func RunMetricsServer(ctx context.Context) {
+	if !cfg.Enabled {
+		fmt.Println("Monitoring disabled")
+		return
+	}
 	metricsMux := http.NewServeMux()
 	metricsMux.Handle(cfg.Endpoint, promhttp.HandlerFor(prometheus.DefaultGatherer, promhttp.HandlerOpts{}))
 

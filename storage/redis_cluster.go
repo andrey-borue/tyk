@@ -789,7 +789,7 @@ func (r *RedisCluster) AppendToSetPipelined(key string, values [][]byte) {
 	status := "success"
 
 	defer func() {
-		prom_monitoring.AppendToSetDuration.WithLabelValues(status).Observe(time.Since(start).Seconds())
+		prom_monitoring.ObserveHistogram(prom_monitoring.AppendToSetDuration, []string{status}, time.Since(start).Seconds())
 	}()
 
 	fixedKey := r.fixKey(key)

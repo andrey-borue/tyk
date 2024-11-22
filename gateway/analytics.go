@@ -77,7 +77,7 @@ func (r *RedisAnalyticsHandler) Init() {
 	recordsBufferSize := r.globalConf.AnalyticsConfig.RecordsBufferSize
 
 	r.workerBufferSize = recordsBufferSize / uint64(ps)
-	prom_monitoring.WorkerBufferSizeGauge.WithLabelValues().Set(float64(r.workerBufferSize))
+	prom_monitoring.SetGauge(prom_monitoring.WorkerBufferSizeGauge, []string{}, float64(r.workerBufferSize))
 	log.WithField("workerBufferSize", r.workerBufferSize).Debug("Analytics pool worker buffer size")
 	r.enableMultipleAnalyticsKeys = r.globalConf.AnalyticsConfig.EnableMultipleAnalyticsKeys
 	r.analyticsSerializer = serializer.NewAnalyticsSerializer(r.globalConf.AnalyticsConfig.SerializerType)
@@ -90,8 +90,8 @@ func (r *RedisAnalyticsHandler) Start() {
 	r.recordsChan = make(chan *analytics.AnalyticsRecord, r.globalConf.AnalyticsConfig.RecordsBufferSize)
 	atomic.SwapUint32(&r.shouldStop, 0)
 
-	prom_monitoring.PoolSizeGauge.WithLabelValues().Set(float64(r.Gw.GetConfig().AnalyticsConfig.PoolSize))
-	prom_monitoring.RecordsBufferSizeGauge.WithLabelValues().Set(float64(r.globalConf.AnalyticsConfig.RecordsBufferSize))
+	prom_monitoring.SetGauge(prom_monitoring.PoolSizeGauge, []string{}, float64(r.Gw.GetConfig().AnalyticsConfig.PoolSize))
+	prom_monitoring.SetGauge(prom_monitoring.RecordsBufferSizeGauge, []string{}, float64(r.globalConf.AnalyticsConfig.RecordsBufferSize))
 
 	for i := 0; i < r.Gw.GetConfig().AnalyticsConfig.PoolSize; i++ {
 		r.poolWg.Add(1)
@@ -122,6 +122,12 @@ func (r *RedisAnalyticsHandler) Flush() {
 
 // RecordHit will store an analytics.Record in Redis
 func (r *RedisAnalyticsHandler) RecordHit(record *analytics.AnalyticsRecord) error {
+	disableSendToRedis := cfg.ResponseCodeFilterEnable && intInSlice(record.ResponseCode, cfg.ResponseCodeFilterList)
+	prom_monitoring.IncrementCounter(prom_monitoring.ResponseCodeCounter, []string{fmt.Sprintf("%d", record.ResponseCode), fmt.Sprintf("%t", !disableSendToRedis)})
+	if disableSendToRedis {
+		return nil
+	}
+
 	if r.mockEnabled {
 		r.mockRecordHit(record)
 		return nil
@@ -139,8 +145,8 @@ func (r *RedisAnalyticsHandler) RecordHit(record *analytics.AnalyticsRecord) err
 	defer r.mu.Unlock()
 	r.recordsChan <- record
 
-	prom_monitoring.RecordsChanSizeGauge.WithLabelValues("success").Set(float64(len(r.recordsChan)))
-	prom_monitoring.LockDurationHistogram.WithLabelValues("success").Observe(time.Since(start).Seconds())
+	prom_monitoring.SetGauge(prom_monitoring.RecordsChanSizeGauge, []string{"success"}, float64(len(r.recordsChan)))
+	prom_monitoring.ObserveHistogram(prom_monitoring.LockDurationHistogram, []string{"success"}, time.Since(start).Seconds())
 
 	return nil
 }
