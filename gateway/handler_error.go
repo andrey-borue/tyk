@@ -260,7 +260,7 @@ func (e *ErrorHandler) HandleError(w http.ResponseWriter, r *http.Request, errMs
 
 		rawRequest := ""
 		rawResponse := ""
-		if recordDetail(r, e.Spec) {
+		if recordDetail(r, e.Spec, nil) {
 
 			// Get the wire format representation
 

@@ -3,6 +3,8 @@ package gateway
 import (
 	"bytes"
 	"encoding/base64"
+	"fmt"
+	"github.com/TykTechnologies/tyk/prom_monitoring"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -208,7 +210,7 @@ func (s *SuccessHandler) RecordHit(r *http.Request, timing analytics.Latency, co
 		rawRequest := ""
 		rawResponse := ""
 
-		if recordDetail(r, s.Spec) {
+		if recordDetail(r, s.Spec, &code) {
 			// Get the wire format representation
 			var wireFormatReq bytes.Buffer
 			r.Write(&wireFormatReq)
@@ -327,10 +329,18 @@ func (s *SuccessHandler) RecordHit(r *http.Request, timing analytics.Latency, co
 	reportHealthValue(s.Spec, RequestLog, strconv.FormatInt(timing.Total, 10))
 }
 
-func recordDetail(r *http.Request, spec *APISpec) bool {
+func recordDetail(r *http.Request, spec *APISpec, code *int) bool {
 	// when streaming in grpc, we do not record the request
 	if httputil.IsStreamingRequest(r) {
 		return false
+	}
+
+	if code != nil {
+		disableByStatus := cfg.ResponseCodeFilterEnable && intInSlice(*code, cfg.ResponseCodeFilterList)
+		prom_monitoring.IncrementCounter(prom_monitoring.ResponseCodeCounter, []string{fmt.Sprintf("%d", *code), fmt.Sprintf("%t", !disableByStatus)})
+		if disableByStatus {
+			return false
+		}
 	}
 
 	if spec.EnableDetailedRecording {

@@ -107,7 +107,7 @@ func TestRecordDetail(t *testing.T) {
 	for _, tc := range testcases {
 		t.Run(tc.title, func(t *testing.T) {
 			req := testRequestWithContext(tc.binding)
-			got := recordDetail(req, tc.spec)
+			got := recordDetail(req, tc.spec, nil)
 			assert.Equal(t, tc.expect, got)
 		})
 	}

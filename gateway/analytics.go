@@ -122,12 +122,6 @@ func (r *RedisAnalyticsHandler) Flush() {
 
 // RecordHit will store an analytics.Record in Redis
 func (r *RedisAnalyticsHandler) RecordHit(record *analytics.AnalyticsRecord) error {
-	disableSendToRedis := cfg.ResponseCodeFilterEnable && intInSlice(record.ResponseCode, cfg.ResponseCodeFilterList)
-	prom_monitoring.IncrementCounter(prom_monitoring.ResponseCodeCounter, []string{fmt.Sprintf("%d", record.ResponseCode), fmt.Sprintf("%t", !disableSendToRedis)})
-	if disableSendToRedis {
-		return nil
-	}
-
 	if r.mockEnabled {
 		r.mockRecordHit(record)
 		return nil
