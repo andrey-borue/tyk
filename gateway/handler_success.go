@@ -336,7 +336,7 @@ func recordDetail(r *http.Request, spec *APISpec, code *int) bool {
 	}
 
 	if code != nil {
-		disableByStatus := cfg.ResponseCodeFilterEnable && intInSlice(*code, cfg.ResponseCodeFilterList)
+		disableByStatus := cfg.ResponseCodeFilterEnable && !intInSlice(*code, cfg.ResponseCodeFilterList)
 		prom_monitoring.IncrementCounter(prom_monitoring.ResponseCodeCounter, []string{fmt.Sprintf("%d", *code), fmt.Sprintf("%t", !disableByStatus)})
 		if disableByStatus {
 			return false
