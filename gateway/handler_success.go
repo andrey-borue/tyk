@@ -4,13 +4,14 @@ import (
 	"bytes"
 	"encoding/base64"
 	"fmt"
-	"github.com/TykTechnologies/tyk/prom_monitoring"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/TykTechnologies/tyk/prom_monitoring"
 
 	graphqlinternal "github.com/TykTechnologies/tyk/internal/graphql"
 
@@ -337,6 +338,7 @@ func recordDetail(r *http.Request, spec *APISpec, code *int) bool {
 
 	if code != nil {
 		disableByStatus := cfg.ResponseCodeFilterEnable && !intInSlice(*code, cfg.ResponseCodeFilterList)
+		log.Debug("analytics disabled by status: ", disableByStatus)
 		prom_monitoring.IncrementCounter(prom_monitoring.ResponseCodeCounter, []string{fmt.Sprintf("%d", *code), fmt.Sprintf("%t", !disableByStatus)})
 		if disableByStatus {
 			return false

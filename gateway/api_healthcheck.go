@@ -58,8 +58,9 @@ func reportHealthValue(spec *APISpec, counter HealthPrefix, value string) {
 	if !spec.GlobalConfig.HealthCheck.EnableHealthChecks {
 		return
 	}
-
-	spec.Health.StoreCounterVal(counter, value)
+	if cfg.HealthCheckApiStatistic {
+		spec.Health.StoreCounterVal(counter, value)
+	}
 }
 
 func (h *DefaultHealthChecker) StoreCounterVal(counterType HealthPrefix, value string) {
