@@ -48,7 +48,7 @@ func (f *JSONFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 		}
 	}
 	if !f.DisableTimestamp {
-		data["timestamp"] = entry.Time.Format(f.TimestampFormat)
+		data["@timestamp"] = entry.Time.Format(f.TimestampFormat)
 	}
 	data[logrus.FieldKeyMsg] = entry.Message
 	data[logrus.FieldKeyLevel] = entry.Level.String()
