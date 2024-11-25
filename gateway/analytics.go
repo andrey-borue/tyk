@@ -2,12 +2,13 @@ package gateway
 
 import (
 	"fmt"
-	"github.com/TykTechnologies/tyk/prom_monitoring"
 	mathrand "math/rand"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/TykTechnologies/tyk/prom_monitoring"
 
 	"github.com/TykTechnologies/tyk-pump/analytics"
 	"github.com/TykTechnologies/tyk-pump/serializer"
