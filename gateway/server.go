@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/TykTechnologies/tyk/prom_monitoring"
 	htmltemplate "html/template"
 	"io/ioutil"
 	stdlog "log"
@@ -1608,6 +1609,7 @@ func (gw *Gateway) getGlobalStorageHandler(keyPrefix string, hashKeys bool) stor
 func Start() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	go prom_monitoring.RunMetricsServer(ctx)
 
 	cli.Init(confPaths)
 	cli.Parse()

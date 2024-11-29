@@ -2,6 +2,7 @@ package log
 
 import (
 	"bytes"
+	"time"
 
 	"github.com/goccy/go-json"
 	"github.com/sirupsen/logrus"
@@ -20,6 +21,16 @@ type JSONFormatter struct {
 
 	// DataKey allows users to put all the log entry parameters into a nested dictionary at a given key.
 	DataKey string
+}
+
+var location *time.Location
+
+func init() {
+	var err error
+	location, err = time.LoadLocation("Asia/Bangkok") // GMT+7
+	if err != nil {
+		panic(err)
+	}
 }
 
 // Format renders a single log entry
@@ -48,7 +59,7 @@ func (f *JSONFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 		}
 	}
 	if !f.DisableTimestamp {
-		data[logrus.FieldKeyTime] = entry.Time.Format(f.TimestampFormat)
+		data["@timestamp"] = entry.Time.In(location).Format(f.TimestampFormat)
 	}
 	data[logrus.FieldKeyMsg] = entry.Message
 	data[logrus.FieldKeyLevel] = entry.Level.String()

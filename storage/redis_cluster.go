@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/TykTechnologies/tyk/prom_monitoring"
 	"strconv"
 	"strings"
 	"sync"
@@ -784,16 +785,25 @@ func (r *RedisCluster) AppendToSetPipelined(key string, values [][]byte) {
 		return
 	}
 
+	start := time.Now()
+	status := "success"
+
+	defer func() {
+		prom_monitoring.ObserveHistogram(prom_monitoring.AppendToSetDuration, []string{status}, time.Since(start).Seconds())
+	}()
+
 	fixedKey := r.fixKey(key)
 	storage, err := r.list()
 	if err != nil {
 		log.Error(err)
+		status = "error_list"
 		return
 	}
 
 	err = storage.Append(context.Background(), true, fixedKey, values...)
 	if err != nil {
 		log.WithError(err).Error("Error trying to append to set keys")
+		status = "error_append"
 	}
 }
 

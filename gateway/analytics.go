@@ -8,6 +8,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/TykTechnologies/tyk/prom_monitoring"
+
 	"github.com/TykTechnologies/tyk-pump/analytics"
 	"github.com/TykTechnologies/tyk-pump/serializer"
 
@@ -76,6 +78,7 @@ func (r *RedisAnalyticsHandler) Init() {
 	recordsBufferSize := r.globalConf.AnalyticsConfig.RecordsBufferSize
 
 	r.workerBufferSize = recordsBufferSize / uint64(ps)
+	prom_monitoring.SetGauge(prom_monitoring.WorkerBufferSizeGauge, []string{}, float64(r.workerBufferSize))
 	log.WithField("workerBufferSize", r.workerBufferSize).Debug("Analytics pool worker buffer size")
 	r.enableMultipleAnalyticsKeys = r.globalConf.AnalyticsConfig.EnableMultipleAnalyticsKeys
 	r.analyticsSerializer = serializer.NewAnalyticsSerializer(r.globalConf.AnalyticsConfig.SerializerType)
@@ -87,6 +90,10 @@ func (r *RedisAnalyticsHandler) Init() {
 func (r *RedisAnalyticsHandler) Start() {
 	r.recordsChan = make(chan *analytics.AnalyticsRecord, r.globalConf.AnalyticsConfig.RecordsBufferSize)
 	atomic.SwapUint32(&r.shouldStop, 0)
+
+	prom_monitoring.SetGauge(prom_monitoring.PoolSizeGauge, []string{}, float64(r.Gw.GetConfig().AnalyticsConfig.PoolSize))
+	prom_monitoring.SetGauge(prom_monitoring.RecordsBufferSizeGauge, []string{}, float64(r.globalConf.AnalyticsConfig.RecordsBufferSize))
+
 	for i := 0; i < r.Gw.GetConfig().AnalyticsConfig.PoolSize; i++ {
 		r.poolWg.Add(1)
 		go r.recordWorker()
@@ -126,11 +133,15 @@ func (r *RedisAnalyticsHandler) RecordHit(record *analytics.AnalyticsRecord) err
 		return nil
 	}
 
+	start := time.Now()
 	// just send record to channel consumed by pool of workers
 	// leave all data crunching and Redis I/O work for pool workers
 	r.mu.Lock()
+	defer r.mu.Unlock()
 	r.recordsChan <- record
-	r.mu.Unlock()
+
+	prom_monitoring.SetGauge(prom_monitoring.RecordsChanSizeGauge, []string{"success"}, float64(len(r.recordsChan)))
+	prom_monitoring.ObserveHistogram(prom_monitoring.LockDurationHistogram, []string{"success"}, time.Since(start).Seconds())
 
 	return nil
 }
